@@ -1,0 +1,18 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30011.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "VirtualKey", "VirtualKey\VirtualKey.shproj", "{6FEABC43-6A6E-421E-B90C-FAE883F48A50}"
+EndProject
+Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		VirtualKey\VirtualKey.projitems*{6feabc43-6a6e-421e-b90c-fae883f48a50}*SharedItemsImports = 13
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1EDAE63A-A0E5-4613-ACB1-2FE6E585D4ED}
+	EndGlobalSection
+EndGlobal
