@@ -1,63 +1,74 @@
-﻿using System;
+﻿using MonoMod.Utils;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace Straitjacket
 {
-    internal class VirtualKey : MonoBehaviour
+    internal sealed class VirtualKey : MonoBehaviour
     {
         [DllImport("USER32.dll")]
         private static extern short GetKeyState(VK nVirtKey);
         private const int KEY_PRESSED = 0x8000;
 
-        private static bool user32Failed = false;
-        public static bool GetKey(VK vk)
+        public static bool GetKey(VK vk) => PlatformHelper.Is(Platform.Windows) && GetKeyInternal(vk);
+        private static bool GetKeyInternal(VK vk)
         {
-            if (!user32Failed)
+            try
             {
-                try
-                {
-                    return Convert.ToBoolean(GetKeyState(vk) & KEY_PRESSED);
-                }
-                catch (EntryPointNotFoundException e)
-                {
-                    user32Failed = true;
-                    Console.WriteLine($"[VirtualKey] USER32.dll not found:{Environment.NewLine}[VirtualKey] {e.Message}");
-                    return false;
-                }
+                return Convert.ToBoolean(GetKeyState(vk) & KEY_PRESSED);
             }
-            else
+            catch (EntryPointNotFoundException e)
             {
+                Console.WriteLine($"[VirtualKey] USER32.dll not found:{Environment.NewLine}[VirtualKey] {e.Message}");
                 return false;
             }
         }
-        public static bool GetKeyUp(VK vk) => Instance.keyStates[vk].Frame == Time.frameCount && !Instance.keyStates[vk].Down;
-        public static bool GetKeyDown(VK vk) => Instance.keyStates[vk].Frame == Time.frameCount && Instance.keyStates[vk].Down;
 
-        public static bool GetKey(KeyCode keyCode) => GetKey(keyCode.ToVK());
-        public static bool GetKeyUp(KeyCode keyCode) => GetKeyUp(keyCode.ToVK());
-        public static bool GetKeyDown(KeyCode keyCode) => GetKeyDown(keyCode.ToVK());
+        public static bool GetKeyUp(VK vk) =>
+            Instance.enabled &&
+            Instance.keyStates[vk].Frame == Time.frameCount &&
+            !Instance.keyStates[vk].Down;
 
-        public static bool GetKeyFromFirstFrame(VK vk) => Instance != null && Instance.firstFrameKeyStates[vk].Down;
+        public static bool GetKeyDown(VK vk) =>
+            Instance.enabled &&
+            Instance.keyStates[vk].Frame == Time.frameCount &&
+            Instance.keyStates[vk].Down;
+
+        public static bool GetKey(KeyCode keyCode) => PlatformHelper.Is(Platform.Windows)
+            ? GetKeyInternal(keyCode.ToVK())
+            : Input.GetKey(keyCode);
+
+        public static bool GetKeyUp(KeyCode keyCode) => PlatformHelper.Is(Platform.Windows)
+            ? GetKeyUp(keyCode.ToVK())
+            : Input.GetKeyUp(keyCode);
+
+        public static bool GetKeyDown(KeyCode keyCode) => PlatformHelper.Is(Platform.Windows)
+            ? GetKeyDown(keyCode.ToVK())
+            : Input.GetKeyUp(keyCode);
+
+        public static bool GetKeyFromFirstFrame(VK vk) => Instance.enabled && Instance.firstFrameKeyStates[vk].Down;
         public static bool GetKeyFromFirstFrame(KeyCode keyCode) => GetKeyFromFirstFrame(keyCode.ToVK());
 
-        private static VirtualKey instance = null;
-        private static VirtualKey Instance => instance = instance ?? new GameObject("VirtualKey").AddComponent<VirtualKey>();
+        private static VirtualKey instance;
+        private static VirtualKey Instance => instance == null
+            ? instance = new GameObject("VirtualKey").AddComponent<VirtualKey>()
+            : instance;
+
         private void Awake()
         {
             if (instance != null)
             {
                 DestroyImmediate(this);
             }
-            else
+            else if (PlatformHelper.Is(Platform.Windows))
             {
                 foreach (var vk in (VK[])Enum.GetValues(typeof(VK)))
                 {
                     var down = GetKey(vk);
-                    keyStates[vk] = new State { Down = down, Frame = -1 };
+                    firstFrameKeyStates[vk] = keyStates[vk] = new State { Down = down, Frame = -1 };
                 }
-                firstFrameKeyStates = new Dictionary<VK, State>(keyStates);
             }
         }
         private struct State
@@ -65,8 +76,13 @@ namespace Straitjacket
             public bool Down;
             public int Frame;
         }
-        private Dictionary<VK, State> firstFrameKeyStates = new Dictionary<VK, State>();
-        private Dictionary<VK, State> keyStates = new Dictionary<VK, State>();
+        private readonly Dictionary<VK, State> firstFrameKeyStates = [];
+        private readonly Dictionary<VK, State> keyStates = [];
+
+        private void OnEnable()
+        {
+            if (!PlatformHelper.Is(Platform.Windows)) enabled = false;
+        }
 
         private void LateUpdate()
         {
